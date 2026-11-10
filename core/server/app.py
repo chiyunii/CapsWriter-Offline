@@ -16,6 +16,9 @@ from core.tools.signal_handler import register_signal
 from .worker.process_manager import ProcessManager
 from .connection.server_manager import SocketManager
 from .ui.tray_manager import TrayManager
+from .metrics import MetricsRegistry
+from .storage import RecognitionStore
+from .http_api import MetricsHttpServer
 from . import logger
 
 class CapsWriterServer:
@@ -40,6 +43,17 @@ class CapsWriterServer:
         self.process_manager = ProcessManager(self)
         self.socket_manager = SocketManager(self)
         self.tray_manager = TrayManager(self)
+
+        # 可观测性与持久化组件
+        self.metrics = MetricsRegistry()
+        self.store = RecognitionStore(str(Config.records_db_path))
+        self.http_server = MetricsHttpServer(
+            self.metrics,
+            self.store,
+            version=__version__,
+            host=Config.http_api_host,
+            port=Config.http_api_port,
+        )
 
         self.version = __version__
         self.is_alive = False
@@ -70,13 +84,16 @@ class CapsWriterServer:
         # 1. 关闭 WebSocket 服务（立即释放端口）
         self.socket_manager.stop()
 
-        # 2. 终止识别子进程
+        # 2. 停止 HTTP 监控接口
+        self.http_server.stop()
+
+        # 3. 终止识别子进程
         self.process_manager.stop()
 
-        # 3. 停止托盘图标
+        # 4. 停止托盘图标
         self.tray_manager.stop()
 
-        # 4. 最后停止协程（需在其他资源释放之后）
+        # 5. 最后停止协程（需在其他资源释放之后）
         self.loop.stop()
 
         logger.info("服务端资源清理完成")
@@ -102,6 +119,11 @@ class CapsWriterServer:
 
         # 拉起识别子进程
         self.process_manager.start()
+
+        # 启动 HTTP 监控接口（健康检查 / 指标 / 检索）
+        if Config.enable_http_api:
+            self.http_server.start()
+            logger.info(f"HTTP 监控接口已启动: {self.http_server.url}")
         
         # 开启网络服务监听 (接管当前线程直至退出)
         try:

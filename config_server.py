@@ -26,6 +26,12 @@ class ServerConfig:
     log_level = 'DEBUG'        # 日志级别：'DEBUG', 'INFO', 'WARNING', 'ERROR', 'CRITICAL'
     aligner_idle_timeout = 10  # 对齐引擎空闲多少秒后自动释放显存 (0 表示不释放)
 
+    # HTTP 监控与检索接口（可观测性 + 识别结果持久化）
+    enable_http_api = True             # 是否启用 HTTP 接口（健康检查 / 指标 / 检索）
+    http_api_host = '127.0.0.1'        # HTTP 接口监听地址（默认仅本机，请勿暴露公网）
+    http_api_port = 6017               # HTTP 接口监听端口
+    records_db_path = Path() / 'records.db'   # 识别结果持久化数据库路径
+
     # GPU 预加速配置（有识别任务时，提前调高显存频率，降低延迟，需管理员权限运行）
     gpu_boost_enabled = False                   # 总开关，默认关闭
     gpu_boost_cmd = 'nvidia-smi -lmc 9000'      # GPU 预加速命令，锁定显存频率到9000MHz（根据实际 GPU 调整）

@@ -172,6 +172,10 @@ async def ws_recv(websocket, app) -> None:
     console.print(f'[bold green]客户端已连接: {remote[0]}:{remote[1]}[/bold green]\n')
     logger.info(f"新客户端连接: {websocket}, ID: {socket_id}")
 
+    # 连接指标埋点
+    app.metrics.increment('caps_server_connections_total')
+    app.metrics.inc_gauge('caps_server_connections_active', 1)
+
     # 创建音频缓冲区
     cache = AudioCache()
 
@@ -206,6 +210,9 @@ async def ws_recv(websocket, app) -> None:
         sockets.pop(socket_id, None)
         if socket_id in sockets_id:
             sockets_id.remove(socket_id)
+
+        # 连接指标埋点
+        app.metrics.inc_gauge('caps_server_connections_active', -1)
 
         console.print(f'[bold red]客户端已断开: {remote[0]}:{remote[1]}[/bold red]\n')
 
